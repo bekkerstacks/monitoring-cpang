@@ -1,0 +1,158 @@
+version: '3.5'
+
+services:
+  cadvisor:
+    image: google/cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks:
+      - private
+      - public
+    deploy:
+      mode: global
+    labels:
+        - traefik.frontend.rule=Host:cadvisor.${DOMAIN:-localhost}
+        - traefik.enable=true
+        - traefik.port=8080
+        - traefik.tags=public
+        - traefik.backend=cadvisor
+        - traefik.docker.network=public
+        - traefik.redirectorservice.frontend.entryPoints=http
+
+  node-exporter:
+    image: prom/node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - ./configs/hostname:/etc/host_hostname
+    ports:
+      - 9100:9100
+    environment:
+      - HOST_HOSTNAME=/etc/host_hostname
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points'
+      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
+      - '--collector.textfile.directory=/etc/node-exporter/'
+    networks:
+      - private
+    deploy:
+      mode: global
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.12.0
+    networks:
+      - private
+
+  alertmanager:
+    image: prom/alertmanager
+    configs:
+      - source: alertmanager_config
+        target: /etc/alertmanager/config.yml
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - alertmanager:/alertmanager
+    networks:
+      - private
+      - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+           - node.role==manager
+      labels:
+        - traefik.frontend.rule=Host:alertmanager.${DOMAIN:-localhost}
+        - traefik.enable=true
+        - traefik.port=9093
+        - traefik.tags=public
+        - traefik.backend=alertmanager
+        - traefik.docker.network=public
+        - traefik.redirectorservice.frontend.entryPoints=http
+
+  prometheus:
+    image: prom/prometheus
+    user: root
+    volumes:
+      - promconfig:/etc/prometheus
+      - promdata:/prometheus
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+      - source: prometheus_rules
+        target: /etc/prometheus/alert.rules
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - private
+      - public
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+      labels:
+        - traefik.frontend.rule=Host:prometheus.${DOMAIN:-localhost}
+        - traefik.enable=true
+        - traefik.port=9090
+        - traefik.tags=public
+        - traefik.backend=prometheus
+        - traefik.docker.network=public
+        - traefik.redirectorservice.frontend.entryPoints=http
+
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - grafanadata:/var/lib/grafana
+    environment:
+      - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN:-localhost}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - PROMETHEUS_ENDPOINT=http://prometheus:9090
+    networks:
+      - private
+      - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role==manager
+      labels:
+        - traefik.frontend.rule=Host:grafana.${DOMAIN:-localhost}
+        - traefik.enable=true
+        - traefik.port=3000
+        - traefik.tags=public
+        - traefik.backend=grafana
+        - traefik.docker.network=public
+        - traefik.redirectorservice.frontend.entryPoints=http
+
+networks:
+  private:
+    name: private
+    driver: overlay
+  public:
+    name: public
+    external: true
+
+volumes:
+  promconfig: {}
+  promdata: {}
+  grafanadata: {}
+  alertmanager: {}
+
+configs:
+  alertmanager_config:
+    file: ./alertmanager/configs/alertmanager.yml
+  prometheus_config:
+    file: ./prometheus/configs/prometheus.yml
+  prometheus_rules:
+    file: ./prometheus/rules/alert.rules
