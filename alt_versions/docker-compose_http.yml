@@ -13,9 +13,14 @@ services:
       - public
     deploy:
       mode: global
-      resources:
-        limits:
-          memory: 128M
+    labels:
+        - traefik.frontend.rule=Host:cadvisor.${DOMAIN:-localhost}
+        - traefik.enable=true
+        - traefik.port=8080
+        - traefik.tags=public
+        - traefik.backend=cadvisor
+        - traefik.docker.network=public
+        - traefik.redirectorservice.frontend.entryPoints=http
 
   node-exporter:
     image: prom/node-exporter
@@ -38,25 +43,9 @@ services:
       - private
     deploy:
       mode: global
-      resources:
-        limits:
-          memory: 128M
 
   blackbox-exporter:
     image: prom/blackbox-exporter:v0.12.0
-    networks:
-      - private
-    deploy:
-      mode: replicated
-      replicas: 1
-      resources:
-        limits:
-          memory: 64M
-
-  mysql-exporter:
-    image: prom/mysqld-exporter
-    environment:
-      - DATA_SOURCE_NAME=root:password@(mysql:3306)/
     networks:
       - private
 
@@ -78,9 +67,6 @@ services:
       placement:
         constraints:
            - node.role==manager
-      resources:
-        limits:
-          memory: 100M
       labels:
         - traefik.frontend.rule=Host:alertmanager.${DOMAIN:-localhost}
         - traefik.enable=true
@@ -89,8 +75,6 @@ services:
         - traefik.backend=alertmanager
         - traefik.docker.network=public
         - traefik.redirectorservice.frontend.entryPoints=http
-        - traefik.redirectorservice.frontend.redirect.entryPoint=https
-        - traefik.webservice.frontend.entryPoints=https
 
   prometheus:
     image: prom/prometheus
@@ -115,9 +99,6 @@ services:
       placement:
         constraints:
           - node.role==manager
-      resources:
-        limits:
-          memory: 500M
       labels:
         - traefik.frontend.rule=Host:prometheus.${DOMAIN:-localhost}
         - traefik.enable=true
@@ -126,27 +107,11 @@ services:
         - traefik.backend=prometheus
         - traefik.docker.network=public
         - traefik.redirectorservice.frontend.entryPoints=http
-        - traefik.redirectorservice.frontend.redirect.entryPoint=https
-        - traefik.webservice.frontend.entryPoints=https
 
   grafana:
     image: grafana/grafana
     volumes:
       - grafanadata:/var/lib/grafana
-      - grafana_provisioning:/etc/grafana/provisioning
-    configs:
-      - source: grafana_config_datasource
-        target: /etc/grafana/provisioning/datasources/prometheus.yml
-      - source: grafana_dashboard_prometheus
-        target: /etc/grafana/provisioning/dashboards/ds_prometheus.yml
-      - source: grafana_dashboard_docker
-        target: /etc/grafana/provisioning/dashboards/DockerMonitoring.json
-      - source: grafana_dashboard_dockerprometheus
-        target: /etc/grafana/provisioning/dashboards/DockerPrometheusMonitoring.json
-      - source: grafana_dashboard_blackbox
-        target: /etc/grafana/provisioning/dashboards/BlackboxExporter.json
-      - source: grafana_dashboard_mysql
-        target: /etc/grafana/provisioning/dashboards/MysqlOverview.json
     environment:
       - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN:-localhost}
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
@@ -169,8 +134,6 @@ services:
         - traefik.backend=grafana
         - traefik.docker.network=public
         - traefik.redirectorservice.frontend.entryPoints=http
-        - traefik.redirectorservice.frontend.redirect.entryPoint=https
-        - traefik.webservice.frontend.entryPoints=https
 
 networks:
   private:
@@ -185,24 +148,11 @@ volumes:
   promdata: {}
   grafanadata: {}
   alertmanager: {}
-  grafana_provisioning: {}
 
 configs:
   alertmanager_config:
-    file: ./alertmanager/configs/alertmanager.yml
+    file: ../alertmanager/configs/alertmanager.yml
   prometheus_config:
-    file: ./prometheus/configs/prometheus_with_mysql.yml
+    file: ../prometheus/configs/prometheus.yml
   prometheus_rules:
-    file: ./prometheus/rules/alert.rules
-  grafana_config_datasource:
-    file: ./grafana/provisioning/datasources/prometheus.yml
-  grafana_dashboard_prometheus:
-    file: ./grafana/provisioning/dashboards/ds_prometheus.yml
-  grafana_dashboard_docker:
-    file: ./grafana/provisioning/dashboards/DockerMonitoring.json
-  grafana_dashboard_dockerprometheus:
-    file: ./grafana/provisioning/dashboards/DockerPrometheusMonitoring.json
-  grafana_dashboard_blackbox:
-    file: ./grafana/provisioning/dashboards/BlackboxExporter.json
-  grafana_dashboard_mysql:
-    file: ./grafana/provisioning/dashboards/MysqlOverview.json
+    file: ../prometheus/rules/alert.rules
