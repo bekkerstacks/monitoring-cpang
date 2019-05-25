@@ -10,17 +10,10 @@ services:
       - /var/lib/docker:/var/lib/docker:ro
     networks:
       - private
-      - public
+    ports:
+      - 8080:8080
     deploy:
       mode: global
-    labels:
-        - traefik.frontend.rule=Host:cadvisor.${DOMAIN:-localhost}
-        - traefik.enable=true
-        - traefik.port=8080
-        - traefik.tags=public
-        - traefik.backend=cadvisor
-        - traefik.docker.network=public
-        - traefik.redirectorservice.frontend.entryPoints=http
 
   node-exporter:
     image: prom/node-exporter
@@ -28,7 +21,7 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-      - ./configs/hostname:/etc/host_hostname
+      - /etc/hostname:/etc/host_hostname
     ports:
       - 9100:9100
     environment:
@@ -61,20 +54,13 @@ services:
       - alertmanager:/alertmanager
     networks:
       - private
-      - public
+    ports:
+      - 9093:9093
     deploy:
       replicas: 1
       placement:
         constraints:
            - node.role==manager
-      labels:
-        - traefik.frontend.rule=Host:alertmanager.${DOMAIN:-localhost}
-        - traefik.enable=true
-        - traefik.port=9093
-        - traefik.tags=public
-        - traefik.backend=alertmanager
-        - traefik.docker.network=public
-        - traefik.redirectorservice.frontend.entryPoints=http
 
   prometheus:
     image: prom/prometheus
@@ -94,19 +80,12 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
     networks:
       - private
-      - public
+    ports:
+      - 9090:9090
     deploy:
       placement:
         constraints:
           - node.role==manager
-      labels:
-        - traefik.frontend.rule=Host:prometheus.${DOMAIN:-localhost}
-        - traefik.enable=true
-        - traefik.port=9090
-        - traefik.tags=public
-        - traefik.backend=prometheus
-        - traefik.docker.network=public
-        - traefik.redirectorservice.frontend.entryPoints=http
 
   grafana:
     image: grafana/grafana
@@ -120,28 +99,18 @@ services:
       - PROMETHEUS_ENDPOINT=http://prometheus:9090
     networks:
       - private
-      - public
+    ports:
+      - 3000:3000
     deploy:
       replicas: 1
       placement:
         constraints:
           - node.role==manager
-      labels:
-        - traefik.frontend.rule=Host:grafana.${DOMAIN:-localhost}
-        - traefik.enable=true
-        - traefik.port=3000
-        - traefik.tags=public
-        - traefik.backend=grafana
-        - traefik.docker.network=public
-        - traefik.redirectorservice.frontend.entryPoints=http
 
 networks:
   private:
     name: private
     driver: overlay
-  public:
-    name: public
-    external: true
 
 volumes:
   promconfig: {}
@@ -151,8 +120,8 @@ volumes:
 
 configs:
   alertmanager_config:
-    file: ./alertmanager/configs/alertmanager.yml
+    file: ../alertmanager/configs/alertmanager.yml
   prometheus_config:
-    file: ./prometheus/configs/prometheus.yml
+    file: ../prometheus/configs/prometheus.yml
   prometheus_rules:
-    file: ./prometheus/rules/alert.rules
+    file: ../prometheus/rules/alert.rules

@@ -126,6 +126,18 @@ services:
     image: grafana/grafana
     volumes:
       - grafanadata:/var/lib/grafana
+      - grafana_provisioning:/etc/grafana/provisioning
+    configs:
+      - source: grafana_config_datasource
+        target: /etc/grafana/provisioning/datasources/prometheus.yml
+      - source: grafana_dashboard_prometheus
+        target: /etc/grafana/provisioning/dashboards/ds_prometheus.yml
+      - source: grafana_dashboard_docker
+        target: /etc/grafana/provisioning/dashboards/DockerMonitoring.json
+      - source: grafana_dashboard_dockerprometheus
+        target: /etc/grafana/provisioning/dashboards/DockerPrometheusMonitoring.json
+      - source: grafana_dashboard_blackbox
+        target: /etc/grafana/provisioning/dashboards/BlackboxExporter.json
     environment:
       - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN:-localhost}
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
@@ -140,9 +152,6 @@ services:
       placement:
         constraints:
           - node.role==manager
-      resources:
-        limits:
-          memory: 384M
       labels:
         - traefik.frontend.rule=Host:grafana.${DOMAIN:-localhost}
         - traefik.enable=true
@@ -167,11 +176,22 @@ volumes:
   promdata: {}
   grafanadata: {}
   alertmanager: {}
+  grafana_provisioning: {}
 
 configs:
   alertmanager_config:
-    file: ./alertmanager/configs/alertmanager.yml
+    file: ../alertmanager/configs/alertmanager.yml
   prometheus_config:
-    file: ./prometheus/configs/prometheus.yml
+    file: ../prometheus/configs/prometheus.yml
   prometheus_rules:
-    file: ./prometheus/rules/alert.rules
+    file: ../prometheus/rules/alert.rules
+  grafana_config_datasource:
+    file: ../grafana/provisioning/datasources/prometheus.yml
+  grafana_dashboard_prometheus:
+    file: ../grafana/provisioning/dashboards/ds_prometheus.yml
+  grafana_dashboard_docker:
+    file: ../grafana/provisioning/dashboards/DockerMonitoring.json
+  grafana_dashboard_dockerprometheus:
+    file: ../grafana/provisioning/dashboards/DockerPrometheusMonitoring.json
+  grafana_dashboard_blackbox:
+    file: ../grafana/provisioning/dashboards/BlackboxExporter.json
