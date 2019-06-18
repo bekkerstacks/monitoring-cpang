@@ -12,6 +12,8 @@ $ git clone https://github.com/bekkerstacks/monitoring-cpang
 $ cd monitoring-cpang
 ```
 
+#### Dependency: Traefik
+
 Get Traefik, by default it uses SSL
 
 See all [configuration options here](https://github.com/bekkerstacks/traefik#configuration):
@@ -22,6 +24,8 @@ See all [configuration options here](https://github.com/bekkerstacks/traefik#con
 ```
 $ wget -O docker-compose.traefik.yml https://raw.githubusercontent.com/bekkerstacks/traefik/master/docker-compose.yml
 ```
+
+#### Deploy Traefik and CPANG
 
 This will deploy Traefik and a Fresh CPANG stack: 
 
