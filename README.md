@@ -9,7 +9,7 @@ Get the sources:
 
 ```
 $ git clone https://github.com/bekkerstacks/monitoring-cpang
-$ cd monitoring cpang
+$ cd monitoring-cpang
 ```
 
 Get Traefik, by default it uses SSL
