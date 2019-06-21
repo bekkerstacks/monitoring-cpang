@@ -18,7 +18,7 @@ services:
           memory: 128M
 
   node-exporter:
-    image: prom/node-exporter
+    image: ruanbekker/node-exporter:v0.18.0
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
@@ -54,7 +54,7 @@ services:
           memory: 64M
 
   alertmanager:
-    image: prom/alertmanager
+    image: prom/alertmanager:v0.17.0
     configs:
       - source: alertmanager_config
         target: /etc/alertmanager/config.yml
@@ -86,7 +86,7 @@ services:
         - traefik.webservice.frontend.entryPoints=https
 
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:v2.9.2
     user: root
     volumes:
       - promconfig:/etc/prometheus
@@ -123,7 +123,7 @@ services:
         - traefik.webservice.frontend.entryPoints=https
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:6.2.1
     volumes:
       - grafanadata:/var/lib/grafana
     environment:
