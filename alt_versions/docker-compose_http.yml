@@ -23,26 +23,39 @@ services:
         - traefik.redirectorservice.frontend.entryPoints=http
 
   node-exporter:
-    image: prom/node-exporter
+    image: basi/node-exporter
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-      - /etc/hostname:/etc/host_hostname
-    ports:
-      - 9100:9100
+      - /tmp/hostname:/etc/host_hostname
+    hostname: "{{.Node.ID}}"
     environment:
       - HOST_HOSTNAME=/etc/host_hostname
     command:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
+      - '--collector.textfile.directory=/etc/node-exporter/'
       - '--collector.filesystem.ignored-mount-points'
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
-      - '--collector.textfile.directory=/etc/node-exporter/'
     networks:
       - private
     deploy:
       mode: global
+
+  docker-exporter:
+    image: basi/socat:${DOCKER_EXPORTER_VERSION:-v0.1.0}
+    networks:
+      - private
+    deploy:
+      mode: global
+      resources:
+        limits:
+          cpus: '0.05'
+          memory: 6M
+        reservations:
+          cpus: '0.05'
+          memory: 4M
 
   blackbox-exporter:
     image: prom/blackbox-exporter:v0.12.0
@@ -54,6 +67,8 @@ services:
     configs:
       - source: alertmanager_config
         target: /etc/alertmanager/config.yml
+      - source: auth_htpasswd
+        target: /etc/htpasswd
     command:
       - '--config.file=/etc/alertmanager/config.yml'
       - '--storage.path=/alertmanager'
@@ -74,6 +89,7 @@ services:
         - traefik.tags=public
         - traefik.backend=alertmanager
         - traefik.docker.network=public
+        - traefik.frontend.auth.basic.usersFile=/etc/htpasswd
         - traefik.redirectorservice.frontend.entryPoints=http
 
   prometheus:
@@ -87,6 +103,8 @@ services:
         target: /etc/prometheus/prometheus.yml
       - source: prometheus_rules
         target: /etc/prometheus/alert.rules
+      - source: auth_htpasswd
+        target: /etc/htpasswd
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -101,6 +119,7 @@ services:
           - node.role==manager
       labels:
         - traefik.frontend.rule=Host:prometheus.${DOMAIN:-localhost}
+        - traefik.frontend.auth.basic.usersFile=/etc/htpasswd
         - traefik.enable=true
         - traefik.port=9090
         - traefik.tags=public
@@ -109,7 +128,7 @@ services:
         - traefik.redirectorservice.frontend.entryPoints=http
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:6.2.1
     volumes:
       - grafanadata:/var/lib/grafana
     environment:
@@ -117,6 +136,7 @@ services:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-piechart-panel
       - PROMETHEUS_ENDPOINT=http://prometheus:9090
     networks:
       - private
@@ -156,3 +176,5 @@ configs:
     file: ../prometheus/configs/prometheus.yml
   prometheus_rules:
     file: ../prometheus/rules/alert.rules
+  auth_htpasswd:
+    file: ../htpasswd
