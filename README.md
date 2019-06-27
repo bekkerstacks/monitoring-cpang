@@ -71,3 +71,15 @@ $ docker stack deploy -c alt_versions/docker-compose_http_with_dbs.yml dbs_mon
 - Alertmanager: `alertmanager.${DOMAIN}`
 - Prometheus: `prometheus.${DOMAIN}`
 - Traefik: `traefik.${DOMAIN}`
+
+
+## Dashboards:
+
+Traefik:
+
+- [4475 - Traefik per Backend](https://grafana.com/dashboards/4475)
+- [6293 - Traefik Real Time](https://grafana.com/dashboards/6293)
+
+Docker:
+
+- [609 - Docker Swarm and Container Overview](https://grafana.com/dashboards/609)
