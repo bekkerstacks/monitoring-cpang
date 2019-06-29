@@ -1,0 +1,189 @@
+version: '3.5'
+
+services:
+  cadvisor:
+    image: google/cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks:
+      - private
+      - public
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+
+  node-exporter:
+    image: ruanbekker/node-exporter:v0.18.0
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+      - /etc/hostname:/etc/host_hostname
+    environment:
+      - HOST_HOSTNAME=/etc/host_hostname
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points'
+      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
+      - '--collector.textfile.directory=/etc/node-exporter/'
+    networks:
+      - private
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 128M
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.12.0
+    networks:
+      - private
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          memory: 64M
+
+  alertmanager:
+    image: prom/alertmanager
+    configs:
+      - source: alertmanager_config
+        target: /etc/alertmanager/config.yml
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - alertmanager:/alertmanager
+    networks:
+      - private
+      - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+           - node.role==manager
+      resources:
+        limits:
+          memory: 100M
+      labels:
+        - traefik.frontend.rule=Host:alertmanager.${DOMAIN:-localhost}
+        - traefik.enable=true
+        - traefik.port=9093
+        - traefik.tags=public
+        - traefik.backend=alertmanager
+        - traefik.docker.network=public
+        - traefik.webservice.frontend.entryPoints=http
+
+  prometheus:
+    image: prom/prometheus
+    user: root
+    volumes:
+      - promconfig:/etc/prometheus
+      - promdata:/prometheus
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+      - source: prometheus_rules
+        target: /etc/prometheus/alert.rules
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - private
+      - public
+    deploy:
+      placement:
+        constraints:
+          - node.role==manager
+      resources:
+        limits:
+          memory: 500M
+      labels:
+        - traefik.frontend.rule=Host:prometheus.${DOMAIN:-localhost}
+        - traefik.enable=true
+        - traefik.port=9090
+        - traefik.tags=public
+        - traefik.backend=prometheus
+        - traefik.docker.network=public
+        - traefik.webservice.frontend.entryPoints=http
+
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - grafana_provisioning:/etc/grafana/provisioning
+    configs:
+      - source: grafana_config_datasource
+        target: /etc/grafana/provisioning/datasources/prometheus.yml
+      - source: grafana_dashboard_prometheus
+        target: /etc/grafana/provisioning/dashboards/ds_prometheus.yml
+      - source: grafana_dashboard_docker
+        target: /etc/grafana/provisioning/dashboards/DockerMonitoring.json
+      - source: grafana_dashboard_dockerprometheus
+        target: /etc/grafana/provisioning/dashboards/DockerPrometheusMonitoring.json
+      - source: grafana_dashboard_blackbox
+        target: /etc/grafana/provisioning/dashboards/BlackboxExporter.json
+    environment:
+      - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN:-localhost}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - PROMETHEUS_ENDPOINT=http://prometheus:9090
+    networks:
+      - private
+      - public
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role==manager
+      labels:
+        - traefik.frontend.rule=Host:grafana.${DOMAIN:-localhost}
+        - traefik.enable=true
+        - traefik.port=3000
+        - traefik.tags=public
+        - traefik.backend=grafana
+        - traefik.docker.network=public
+        - traefik.webservice.frontend.entryPoints=http
+
+networks:
+  private:
+    name: private
+    driver: overlay
+  public:
+    name: public
+    external: true
+
+volumes:
+  promconfig: {}
+  promdata: {}
+  grafanadata: {}
+  alertmanager: {}
+  grafana_provisioning: {}
+
+configs:
+  alertmanager_config:
+    file: ../alertmanager/configs/alertmanager.yml
+  prometheus_config:
+    file: ../prometheus/configs/prometheus.yml
+  prometheus_rules:
+    file: ../prometheus/rules/alert.rules
+  grafana_config_datasource:
+    file: ../grafana/provisioning/datasources/prometheus.yml
+  grafana_dashboard_prometheus:
+    file: ../grafana/provisioning/dashboards/ds_prometheus.yml
+  grafana_dashboard_docker:
+    file: ../grafana/provisioning/dashboards/DockerMonitoring.json
+  grafana_dashboard_dockerprometheus:
+    file: ../grafana/provisioning/dashboards/DockerPrometheusMonitoring.json
+  grafana_dashboard_blackbox:
+    file: ../grafana/provisioning/dashboards/BlackboxExporter.json
