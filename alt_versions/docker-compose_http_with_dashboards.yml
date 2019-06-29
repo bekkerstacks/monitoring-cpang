@@ -18,20 +18,18 @@ services:
           memory: 128M
 
   node-exporter:
-    image: ruanbekker/node-exporter:v0.18.0
+    image: prom/node-exporter
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-      - /etc/hostname:/etc/host_hostname
     environment:
-      - HOST_HOSTNAME=/etc/host_hostname
+      - NODE_ID={{.Node.ID}}
     command:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.ignored-mount-points'
+      - --collector.filesystem.ignored-mount-points
       - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
-      - '--collector.textfile.directory=/etc/node-exporter/'
     networks:
       - private
     deploy:
@@ -128,8 +126,8 @@ services:
         target: /etc/grafana/provisioning/dashboards/ds_prometheus.yml
       - source: grafana_dashboard_docker
         target: /etc/grafana/provisioning/dashboards/DockerMonitoring.json
-      - source: grafana_dashboard_dockerprometheus
-        target: /etc/grafana/provisioning/dashboards/DockerPrometheusMonitoring.json
+      - source: grafana_dashboard_nodes
+        target: /etc/grafana/provisioning/dashboards/NodeMonitoring.json
       - source: grafana_dashboard_blackbox
         target: /etc/grafana/provisioning/dashboards/BlackboxExporter.json
     environment:
@@ -183,7 +181,7 @@ configs:
     file: ../grafana/provisioning/dashboards/ds_prometheus.yml
   grafana_dashboard_docker:
     file: ../grafana/provisioning/dashboards/DockerMonitoring.json
-  grafana_dashboard_dockerprometheus:
-    file: ../grafana/provisioning/dashboards/DockerPrometheusMonitoring.json
+  grafana_dashboard_nodes:
+    file: ../grafana/provisioning/dashboards/NodeMonitoring.json
   grafana_dashboard_blackbox:
     file: ../grafana/provisioning/dashboards/BlackboxExporter.json
