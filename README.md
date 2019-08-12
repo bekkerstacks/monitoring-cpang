@@ -20,10 +20,19 @@ Get Traefik, by default it uses SSL
 See all [configuration options here](https://github.com/bekkerstacks/traefik#configuration):
 
 - requires your domain name as env var `DOMAIN=""` defaults to `localhost`
-- requires md5sum hash for username/password as `MD5SUM` for UI auth, defaults to admin/admin
 
 ```
 $ wget -O docker-compose.traefik.yml https://raw.githubusercontent.com/bekkerstacks/traefik/master/docker-compose.yml
+```
+
+#### Authentication
+
+Services that do not come with authentication endpoints, is protected by basic auth and by default is (`admin/admin`). 
+
+To override:
+
+```
+$ htpasswd -c htpasswd <username>
 ```
 
 #### Deploy Traefik and CPANG
@@ -45,7 +54,7 @@ a Stack with HTTP Endpoints:
 $ docker stack deploy -c alt_versions/docker-compose_http.yml http_mon
 ```
 
-a Stack without Treafik:
+a Stack without Traefik:
 
 ```
 $ docker stack deploy -c alt_versions/docker-compose_no_traefik.yml notraefik_mon

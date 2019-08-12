@@ -58,6 +58,8 @@ services:
     configs:
       - source: alertmanager_config
         target: /etc/alertmanager/config.yml
+      - source: basicauth_htpasswd
+        target: /etc/htpasswd
     command:
       - '--config.file=/etc/alertmanager/config.yml'
       - '--storage.path=/alertmanager'
@@ -76,6 +78,7 @@ services:
           memory: 100M
       labels:
         - traefik.frontend.rule=Host:alertmanager.${DOMAIN:-localhost}
+        - traefik.frontend.auth.basic.usersFile=/etc/htpasswd
         - traefik.enable=true
         - traefik.port=9093
         - traefik.tags=public
@@ -117,6 +120,34 @@ services:
         - traefik.port=9090
         - traefik.tags=public
         - traefik.backend=prometheus
+        - traefik.docker.network=public
+        - traefik.redirectorservice.frontend.entryPoints=http
+        - traefik.redirectorservice.frontend.redirect.entryPoint=https
+        - traefik.webservice.frontend.entryPoints=https
+
+  pushgateway:
+    image: prom/pushgateway:v0.8.0
+    networks:
+      - private
+      - public
+    configs:
+      - source: basicauth_htpasswd
+        target: /etc/htpasswd
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role==manager
+      resources:
+        limits:
+          memory: 64M
+      labels:
+        - traefik.frontend.rule=Host:pushgateway.${DOMAIN:-localhost}
+        - traefik.frontend.auth.basic.usersFile=/etc/htpasswd
+        - traefik.enable=true
+        - traefik.port=9091
+        - traefik.tags=public
+        - traefik.backend=pushgateway
         - traefik.docker.network=public
         - traefik.redirectorservice.frontend.entryPoints=http
         - traefik.redirectorservice.frontend.redirect.entryPoint=https
@@ -176,3 +207,5 @@ configs:
     file: ./prometheus/configs/prometheus.yml
   prometheus_rules:
     file: ./prometheus/rules/alert.rules
+  basicauth_htpasswd:
+    file: ./htpasswd
