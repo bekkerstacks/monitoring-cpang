@@ -81,8 +81,11 @@ $ docker stack deploy -c alt_versions/docker-compose_http_with_dbs.yml dbs_mon
 - Prometheus: `prometheus.${DOMAIN}`
 - Traefik: `traefik.${DOMAIN}`
 
+## Configuration
 
-## Dashboards:
+Look at the [wiki](https://github.com/bekkerstacks/monitoring-cpang/wiki) for tutorials on how to add datasources and dashboards
+
+## Extra Dashboard Links:
 
 Traefik:
 
