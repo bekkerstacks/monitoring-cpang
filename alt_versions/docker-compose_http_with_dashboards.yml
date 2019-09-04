@@ -50,7 +50,7 @@ services:
           memory: 64M
 
   alertmanager:
-    image: prom/alertmanager
+    image: prom/alertmanager:v0.17.0
     configs:
       - source: alertmanager_config
         target: /etc/alertmanager/config.yml
@@ -80,7 +80,7 @@ services:
         - traefik.webservice.frontend.entryPoints=http
 
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:v2.9.2
     user: root
     volumes:
       - promconfig:/etc/prometheus
@@ -115,7 +115,7 @@ services:
         - traefik.webservice.frontend.entryPoints=http
 
   grafana:
-    image: grafana/grafana
+    image: grafana/grafana:6.2.1
     volumes:
       - grafanadata:/var/lib/grafana
       - grafana_provisioning:/etc/grafana/provisioning
