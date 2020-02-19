@@ -1,0 +1,88 @@
+version: '3.5'
+
+services:
+  cadvisor:
+    image: google/cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+    networks:
+      - private
+    ports:
+      - 8080:8080
+
+  node-exporter:
+    image: prom/node-exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    ports:
+      - 9100:9100
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points'
+      - "^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)"
+    networks:
+      - private
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.12.0
+    networks:
+      - private
+
+  alertmanager:
+    image: prom/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    volumes:
+      - ./alertmanager/configs/alertmanager-localhost.yml:/etc/alertmanager/config.yml
+      - alertmanager:/alertmanager
+    networks:
+      - private
+    ports:
+      - 9093:9093
+
+  prometheus:
+    image: prom/prometheus
+    user: root
+    volumes:
+      - ./prometheus/configs/prometheus-localhost.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/rules/alert.rules:/etc/prometheus/alert.rules
+      - promdata:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+    networks:
+      - private
+    ports:
+      - 9090:9090
+
+  grafana:
+    image: grafana/grafana
+    volumes:
+      - grafanadata:/var/lib/grafana
+    environment:
+      - GF_SERVER_ROOT_URL=http://grafana.${DOMAIN:-localdns.xyz}
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - PROMETHEUS_ENDPOINT=http://prometheus:9090
+    networks:
+      - private
+    ports:
+      - 3000:3000
+
+networks:
+  private: {}
+
+volumes:
+  promdata: {}
+  grafanadata: {}
+  alertmanager: {}
