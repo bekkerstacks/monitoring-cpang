@@ -40,7 +40,7 @@ services:
       - '--config.file=/etc/alertmanager/config.yml'
       - '--storage.path=/alertmanager'
     volumes:
-      - ./alertmanager/configs/alertmanager-localhost.yml:/etc/alertmanager/config.yml
+      - ./alertmanager/configs/alertmanager.yml:/etc/alertmanager/config.yml
       - alertmanager:/alertmanager
     networks:
       - private
